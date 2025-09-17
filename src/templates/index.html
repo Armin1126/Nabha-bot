@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Nabha Health Bot</title>
+  <style>
+    body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #e8f5e9, #f1f8e9);
+  margin: 0;
+  padding: 0;
+}
+
+.chat-container {
+  width: 500px;
+  margin: 60px auto;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 25px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border-top: 6px solid #388e3c;
+}
+
+h2 {
+  text-align: center;
+  color: #2e7d32;
+  font-size: 24px;
+  margin-bottom: 20px;
+  letter-spacing: 1px;
+}
+
+#chat-box {
+  height: 420px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  padding: 15px;
+  border-radius: 10px;
+  background: #f9fbfc;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.user {
+  color: #c62828;
+  margin: 8px 0;
+  font-weight: 500;
+}
+
+.bot {
+  margin: 12px 0;
+  animation: fadeIn 0.3s ease-in;
+}
+
+.punjabi-reply {
+  background: #e6f9ee;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 5px;
+  color: #1b5e20;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.english-reply {
+  background: #e9f4fe;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 8px;
+  color: #0d47a1;
+  font-size: 15px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.replay-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  margin-left: 10px;
+  color: #2e7d32;
+  transition: transform 0.2s;
+}
+
+.replay-btn:hover {
+  color: #1b5e20;
+  transform: scale(1.2);
+}
+
+.input-box {
+  display: flex;
+  margin-top: 15px;
+  gap: 8px;
+}
+
+input, select {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  outline: none;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+input:focus, select:focus {
+  border-color: #388e3c;
+  box-shadow: 0 0 6px rgba(0,137,123,0.3);
+}
+
+button {
+  padding: 12px 16px;
+  border: none;
+  background: #388e3c;
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background: #2e7d32;
+}
+
+.mic-btn {
+  background: #388e3c;
+}
+
+.mic-btn.recording {
+  background: #2e7d32;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+  </style>
+</head>
+<body>
+  <div class="chat-container">
+    <h2>Nabha Health Bot</h2>
+    <div id="chat-box"></div>
+    <div class="input-box">
+      <input type="text" id="user-input" placeholder="Speak or type your symptoms...">
+      <button onclick="sendMessage()">Send</button>
+      <button id="mic-btn" class="mic-btn">🎤</button>
+    </div>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById("chat-box");
+    const micBtn = document.getElementById("mic-btn");
+    let mediaRecorder;
+    let audioChunks = [];
+
+    function botReply(text, audioUrl) {
+      // Extract Punjabi + English
+      let punjabiText = text.match(/Punjabi:\s*(.*?)(?=English:|$)/is);
+      let englishText = text.match(/English:\s*(.*)/is);
+
+      punjabiText = punjabiText ? punjabiText[1].trim() : "";
+      englishText = englishText ? englishText[1].trim() : "";
+
+      const replyId = "audio-" + Date.now();
+
+      chatBox.innerHTML += `
+        <div class='bot'>
+          <div class='punjabi-reply'>
+            <span><b>Punjabi:</b> ${punjabiText}</span>
+            <button class="replay-btn" onclick="replayAudio('${replyId}')">🔊</button>
+          </div>
+          <div class='english-reply'><b>English:</b> ${englishText}</div>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      if (audioUrl) {
+        const audio = new Audio(audioUrl);
+        audio.id = replyId;
+        audio.style.display = "none"; // keep hidden
+        document.body.appendChild(audio);
+        audio.play();
+      }
+    }
+
+    function replayAudio(audioId) {
+      const audioElem = document.getElementById(audioId);
+      if (audioElem) audioElem.play();
+    }
+    async function sendMessage(messageText) {
+  const input = document.getElementById("user-input");
+  const message = messageText || input.value.trim();
+  if (!message) return;
+
+  // ✅ Don't display "InitialPrompt" as a user message
+  if (message !== "InitialPrompt") {
+    chatBox.innerHTML += `<div class='user'><b>You:</b> ${message}</div>`;
+  }
+  input.value = "";
+
+  try {
+    const response = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      botReply("Punjabi: ਇੱਕ ਗਲਤੀ ਹੋਈ। English: An error occurred.");
+    } else {
+      botReply(data.reply, data.audio_url);
+    }
+  } catch (err) {
+    botReply("Punjabi: ਸਰਵਰ ਨਾਲ ਸੰਪਰਕ ਨਹੀਂ ਹੋ ਸਕਿਆ। English: Could not connect to server.");
+  }
+}
+    // 🎤 Mic recording
+    micBtn.addEventListener("click", async () => {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+
+        mediaRecorder.onstop = async () => {
+          const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+          const formData = new FormData();
+          formData.append("file", audioBlob, "voice.wav");
+
+          const res = await fetch("/voice", { method: "POST", body: formData });
+          const result = await res.json();
+
+          if (result.transcribed_text) {
+            sendMessage(result.transcribed_text);
+          }
+        };
+
+        mediaRecorder.start();
+        micBtn.classList.add("recording");
+      } else {
+        mediaRecorder.stop();
+        micBtn.classList.remove("recording");
+      }
+    });
+    window.onload = function() {
+  sendMessage("InitialPrompt");
+};
+
+
+  </script>
+</body>
+</html>
